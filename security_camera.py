@@ -623,10 +623,13 @@ class SecurityCamera:
             return
 
         self.last_alert_time = now
-
-        # Preparar alerta
         snapshot_path = self._save_snapshot(frame)
 
+        # Ejecutar análisis y envío en segundo plano para no congelar la cámara con los reintentos
+        threading.Thread(target=self._process_and_send_alert, args=(snapshot_path, faces, timestamp), daemon=True).start()
+
+    def _process_and_send_alert(self, snapshot_path, faces, timestamp):
+        """Analiza la imagen en segundo plano y la envía a Telegram."""
         # Análisis opcional
         ai_description = None
         if self.describer and self.describer.enabled:
@@ -650,9 +653,9 @@ class SecurityCamera:
             f"{face_info}"
         )
 
-        # Enviar alerta en segundo plano
-        self.telegram.send_async(self.telegram.send_photo, snapshot_path, caption)
-        logger.info(f"🚨 Movimiento detectado! Caras: {[f['name'] for f in faces] if faces else 'ninguna'}")
+        # Enviar alerta (como ya estamos en segundo plano, usamos send_photo localmente)
+        self.telegram.send_photo(snapshot_path, caption)
+        logger.info(f"🚨 Alerta enviada! Caras detectadas: {[f['name'] for f in faces] if faces else 'ninguna'}")
 
     def _process_finished_video(self, filepath):
         """Analiza el video completo y envía un resumen por Telegram."""
