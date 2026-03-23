@@ -458,41 +458,33 @@ class GeminiDescriber:
             logger.error(f"Error inicializando Gemini: {e}")
             self.enabled = False
 
-    def describe_image(self, image_path, retries=3):
+    def describe_image(self, image_path):
         if not self.enabled or not self.model:
             return None
 
-        for attempt in range(retries):
-            try:
-                with open(image_path, "rb") as f:
-                    image_bytes = f.read()
+        try:
+            with open(image_path, "rb") as f:
+                image_bytes = f.read()
 
-                response = self.model.generate_content([
-                    {"text": self.prompt},
-                    {
-                        "inline_data": {
-                            "mime_type": "image/jpeg",
-                            "data": image_bytes
-                        }
+            response = self.model.generate_content([
+                {"text": self.prompt},
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": image_bytes
                     }
-                ])
+                }
+            ])
 
-                if response and response.candidates:
-                    return response.candidates[0].content.parts[0].text.strip()
-            except Exception as e:
-                error_msg = str(e)
-                if "429" in error_msg or "Quota" in error_msg or "503" in error_msg:
-                    if attempt < retries - 1:
-                        logger.warning(f"⚠️ Cuota de Gemini excedida en FOTO (intento {attempt+1}/{retries}). Reintentando en 35s...")
-                        time.sleep(35)
-                        continue
-                logger.error(f"Error al describir imagen con Gemini: {e}")
-                break
+            if response and response.candidates:
+                return response.candidates[0].content.parts[0].text.strip()
+        except Exception as e:
+            logger.error(f"⚠️ Error al describir imagen con Gemini (Posible límite de cuota): {e}")
 
         return None
 
-    def describe_video(self, video_path, retries=3):
-        """Sube un video a Gemini, espera a que se procese y lo analiza con reintentos."""
+    def describe_video(self, video_path):
+        """Sube un video a Gemini, espera a que se procese y lo analiza."""
         if not self.enabled or not self.model:
             return None
 
@@ -519,18 +511,11 @@ class GeminiDescriber:
                 "(Escribe minuciosamente lo que pasó en el video, como a los 0:05 sacó algo, 0:10 etc.)"
             )
             
-            for attempt in range(retries):
-                try:
-                    response = self.model.generate_content([video_file, prompt])
-                    break # Salir del bucle si fue exitoso
-                except Exception as e:
-                    error_msg = str(e)
-                    if ("429" in error_msg or "Quota" in error_msg or "503" in error_msg) and attempt < retries - 1:
-                        logger.warning(f"⚠️ Cuota de Gemini excedida en VIDEO (intento {attempt+1}/{retries}). Reintentando en 35s...")
-                        time.sleep(35)
-                        continue
-                    logger.error(f"Error al analizar video con Gemini: {e}")
-                    raise # Forzar el borrado del archivo en caso de error insalvable
+            try:
+                response = self.model.generate_content([video_file, prompt])
+            except Exception as e:
+                logger.error(f"⚠️ Error al analizar video con Gemini (Posible límite de cuota): {e}")
+                response = None
             
             # Borrar archivo de la nube para no consumir almacenamiento de Gemini 
             try:
@@ -541,8 +526,7 @@ class GeminiDescriber:
             if response and response.candidates:
                 return response.candidates[0].content.parts[0].text.strip()
         except Exception as e:
-            # Capturamos cualquier otro error grave no cubierto
-            pass
+            logger.error(f"❌ Error crítico subiendo video a Gemini: {e}")
 
         return None
 
