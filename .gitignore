@@ -1,0 +1,28 @@
+# Grabaciones y capturas
+grabaciones/*
+!grabaciones/.gitkeep
+rostros_conocidos/*.jpg
+rostros_conocidos/*.png
+!rostros_conocidos/.gitkeep
+
+# Variables de entorno (contiene tokens secretos)
+.env
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
